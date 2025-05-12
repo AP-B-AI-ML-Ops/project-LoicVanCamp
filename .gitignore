@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.venv/
+venv/
+ENV/
+env.bak/
+*.env
+
+# VSCode
+.vscode/
+
+# macOS/Linux
+.DS_Store
+Thumbs.db
+
+# Logs and outputs
+logs/
+*.log
+
+# MLflow artifacts
+mlruns/
+mlartifacts/
+
+# Prefect
+.prefect/
+
+# Docker
+*.pid
+*.sock
+
+# Python package files
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# Dependency locking
+poetry.lock
+Pipfile.lock
