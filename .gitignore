@@ -50,3 +50,6 @@ htmlcov/
 # Dependency locking
 poetry.lock
 Pipfile.lock
+
+# models
+models/.pkl
