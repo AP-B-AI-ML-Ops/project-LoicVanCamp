@@ -8,6 +8,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 
+import mlflow
+import mlflow.sklearn
+
 # Load the dataset
 df = pd.read_csv("data/StudentsPerformance.csv")
 
@@ -34,31 +37,44 @@ train_dicts = df_train[categorical].to_dict(orient='records')
 X_train = dv.fit_transform(train_dicts)
 y_train = df_train["pass_math"]
 
-# Train model
-model = LogisticRegression()
-model.fit(X_train, y_train)
+# Start MLflow tracking
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_experiment("student-performance")
 
-# Evaluate on test data
-test_dicts = df_test[categorical].to_dict(orient='records')
-X_test = dv.transform(test_dicts)
-y_test = df_test["pass_math"]
-y_pred = model.predict(X_test)
+with mlflow.start_run():
+    # Train model
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
 
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print(classification_report(y_test, y_pred))
+    # Log model hyperparameters (none in this case, but good habit)
+    mlflow.log_param("model_type", "LogisticRegression")
 
-# Plot prediction vs actual
-sns.histplot(y_pred, label="Prediction", kde=False, stat="density")
-sns.histplot(y_test, label="Actual", kde=False, stat="density", color="orange")
-plt.legend()
-plt.title("Prediction vs Actual Pass/Fail")
-plt.show()
+    # Evaluate on test data
+    test_dicts = df_test[categorical].to_dict(orient='records')
+    X_test = dv.transform(test_dicts)
+    y_test = df_test["pass_math"]
+    y_pred = model.predict(X_test)
 
-# Save model and vectorizer
-with open("models/model.pkl", "wb") as f_out:
-    pickle.dump(model, f_out)
+    acc = accuracy_score(y_test, y_pred)
+    mlflow.log_metric("accuracy", acc)
 
-with open("models/dv.pkl", "wb") as f_out:
-    pickle.dump(dv, f_out)
+    print("Accuracy:", acc)
+    print(classification_report(y_test, y_pred))
 
-print("✅ Model and vectorizer saved to 'models/'")
+    # Save and log the model and vectorizer
+    with open("models/model.pkl", "wb") as f_out:
+        pickle.dump(model, f_out)
+    with open("models/dv.pkl", "wb") as f_out:
+        pickle.dump(dv, f_out)
+
+    mlflow.sklearn.log_model(model, artifact_path="model")
+    print("✅ Model and vectorizer saved and logged")
+
+    # Save and log plot
+    sns.histplot(y_pred, label="Prediction", kde=False, stat="density")
+    sns.histplot(y_test, label="Actual", kde=False, stat="density", color="orange")
+    plt.legend()
+    plt.title("Prediction vs Actual Pass/Fail")
+    plot_path = "models/pred_vs_actual.png"
+    plt.savefig(plot_path)
+    mlflow.log_artifact(plot_path)

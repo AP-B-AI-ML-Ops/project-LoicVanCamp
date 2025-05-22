@@ -3,3 +3,5 @@ pickle
 seaborn
 matplotlib
 sklearn
+mlflow
+psycopg2-binary

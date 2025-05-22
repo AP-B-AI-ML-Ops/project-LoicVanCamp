@@ -53,3 +53,7 @@ Pipfile.lock
 
 # models
 models/.pkl
+models/
+
+# mlflow
+mlruns/
