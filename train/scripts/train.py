@@ -2,7 +2,7 @@ import pandas as pd
 import pickle
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+from pathlib import Path
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
@@ -11,8 +11,16 @@ from sklearn.model_selection import train_test_split
 import mlflow
 import mlflow.sklearn
 
+# Padconfiguration
+CURRENT_FILE = Path(__file__).resolve()
+# go 2 levels up: scripts/ -> train/ -> project root
+ROOT_DIR = CURRENT_FILE.parents[2]
+DATA_PATH = ROOT_DIR / "train" / "data" / "StudentsPerformance.csv"
+MODELS_DIR = ROOT_DIR / "models"
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
 # Load the dataset
-df = pd.read_csv("data/StudentsPerformance.csv")
+df = pd.read_csv(DATA_PATH)
 
 # Create binary target: 1 if math score >= 50, else 0
 df["pass_math"] = (df["math score"] >= 50).astype(int)
@@ -62,9 +70,9 @@ with mlflow.start_run():
     print(classification_report(y_test, y_pred))
 
     # Save and log the model and vectorizer
-    with open("models/model.pkl", "wb") as f_out:
+    with open(MODELS_DIR / "model.pkl", "wb") as f_out:
         pickle.dump(model, f_out)
-    with open("models/dv.pkl", "wb") as f_out:
+    with open(MODELS_DIR / "dv.pkl", "wb") as f_out:
         pickle.dump(dv, f_out)
 
     mlflow.sklearn.log_model(model, artifact_path="model")
@@ -72,9 +80,10 @@ with mlflow.start_run():
 
     # Save and log plot
     sns.histplot(y_pred, label="Prediction", kde=False, stat="density")
-    sns.histplot(y_test, label="Actual", kde=False, stat="density", color="orange")
+    sns.histplot(y_test, label="Actual", kde=False,
+                 stat="density", color="orange")
     plt.legend()
     plt.title("Prediction vs Actual Pass/Fail")
-    plot_path = "models/pred_vs_actual.png"
+    plot_path = MODELS_DIR / "pred_vs_actual.png"
     plt.savefig(plot_path)
     mlflow.log_artifact(plot_path)
