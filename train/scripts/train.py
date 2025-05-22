@@ -1,89 +1,32 @@
-import pandas as pd
+import os
 import pickle
-import seaborn as sns
-import matplotlib.pyplot as plt
-from pathlib import Path
-from sklearn.feature_extraction import DictVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.model_selection import train_test_split
-
 import mlflow
-import mlflow.sklearn
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 
-# Padconfiguration
-CURRENT_FILE = Path(__file__).resolve()
-# go 2 levels up: scripts/ -> train/ -> project root
-ROOT_DIR = CURRENT_FILE.parents[2]
-DATA_PATH = ROOT_DIR / "train" / "data" / "StudentsPerformance.csv"
-MODELS_DIR = ROOT_DIR / "models"
-MODELS_DIR.mkdir(parents=True, exist_ok=True)
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000"))
+mlflow.set_experiment("student-performance-train")
 
-# Load the dataset
-df = pd.read_csv(DATA_PATH)
+def load_pickle(filename):
+    with open(filename, "rb") as f_in:
+        return pickle.load(f_in)
 
-# Create binary target: 1 if math score >= 50, else 0
-df["pass_math"] = (df["math score"] >= 50).astype(int)
+def run_train(data_path: str):
+    mlflow.sklearn.autolog()
+    X_train, y_train = load_pickle(os.path.join(data_path, "train.pkl"))
+    X_val, y_val = load_pickle(os.path.join(data_path, "val.pkl"))
 
-# Define categorical features
-categorical = [
-    "gender",
-    "race/ethnicity",
-    "parental level of education",
-    "lunch",
-    "test preparation course"
-]
+    with mlflow.start_run():
+        model = LogisticRegression()
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
+        acc = accuracy_score(y_val, y_pred)
+        mlflow.log_metric("accuracy", acc)
+        print("Validation accuracy:", acc)
 
-# Split into training and test sets
-df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
-df_train = df_train.reset_index(drop=True)
-df_test = df_test.reset_index(drop=True)
+        # Log model
+        mlflow.sklearn.log_model(model, artifact_path="model")
 
-# Vectorize the training data
-dv = DictVectorizer(sparse=False)
-train_dicts = df_train[categorical].to_dict(orient='records')
-X_train = dv.fit_transform(train_dicts)
-y_train = df_train["pass_math"]
-
-# Start MLflow tracking
-mlflow.set_tracking_uri("http://localhost:5000")
-mlflow.set_experiment("student-performance")
-
-with mlflow.start_run():
-    # Train model
-    model = LogisticRegression()
-    model.fit(X_train, y_train)
-
-    # Log model hyperparameters (none in this case, but good habit)
-    mlflow.log_param("model_type", "LogisticRegression")
-
-    # Evaluate on test data
-    test_dicts = df_test[categorical].to_dict(orient='records')
-    X_test = dv.transform(test_dicts)
-    y_test = df_test["pass_math"]
-    y_pred = model.predict(X_test)
-
-    acc = accuracy_score(y_test, y_pred)
-    mlflow.log_metric("accuracy", acc)
-
-    print("Accuracy:", acc)
-    print(classification_report(y_test, y_pred))
-
-    # Save and log the model and vectorizer
-    with open(MODELS_DIR / "model.pkl", "wb") as f_out:
-        pickle.dump(model, f_out)
-    with open(MODELS_DIR / "dv.pkl", "wb") as f_out:
-        pickle.dump(dv, f_out)
-
-    mlflow.sklearn.log_model(model, artifact_path="model")
-    print("✅ Model and vectorizer saved and logged")
-
-    # Save and log plot
-    sns.histplot(y_pred, label="Prediction", kde=False, stat="density")
-    sns.histplot(y_test, label="Actual", kde=False,
-                 stat="density", color="orange")
-    plt.legend()
-    plt.title("Prediction vs Actual Pass/Fail")
-    plot_path = MODELS_DIR / "pred_vs_actual.png"
-    plt.savefig(plot_path)
-    mlflow.log_artifact(plot_path)
+if __name__ == "__main__":
+    print("...training model")
+    run_train("models")

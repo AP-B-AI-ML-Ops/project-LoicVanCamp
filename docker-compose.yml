@@ -1,7 +1,7 @@
 services:
-  postgres:
+  backend-database:
     build: ./backend-database
-    container_name: mlflow_postgres
+    container_name: backend-database
     env_file:
       - ./backend-database/.env
     ports:
@@ -9,20 +9,46 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  mlflow:
+
+  experiment-tracking:
     build: ./backend-service-experiment-tracking
     container_name: backend-service-experiment-tracking
     ports:
       - "5000:5000"
     command: >
       mlflow server 
-      --backend-store-uri postgresql://postgres:postgres@postgres:5432/mlflow_db 
+      --backend-store-uri postgresql://postgres:postgres@backend-database:5432/mlflow_db 
       --default-artifact-root /mlruns 
       --host 0.0.0.0
     depends_on:
-      - postgres
+      - backend-database
     volumes:
       - ./mlruns:/mlruns
+
+  orchestration:
+    build: ./backend-service-orchestration
+    ports:
+      - 4200:4200
+
+  batch-service:
+    build: ./deploy-batch 
+    depends_on:
+      - orchestration
+    volumes:
+      - ./train/data:/data
+      - ./models:/models
+      - ./mlruns:/mlruns
+
+  model-training:
+    build: ./train
+    depends_on:
+      - experiment-tracking
+    volumes:
+      - ./train/data:/app/data
+      - ./models:/app/models
+      - ./mlruns:/mlruns
+    environment:
+      - MLFLOW_TRACKING_URI=http://experiment-tracking:5000
 
 volumes:
   pgdata:

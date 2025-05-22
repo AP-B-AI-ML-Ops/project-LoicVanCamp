@@ -1,19 +1,15 @@
+import os
 import pickle
 from pathlib import Path
-import pandas as pd
-
 import click
 import mlflow
 import optuna
-
 from optuna.samplers import TPESampler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
 
 
-# MLflow config
-mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000"))
 mlflow.set_experiment("student-performance-hpo")
 
 
@@ -25,8 +21,8 @@ def load_pickle(path: Path):
 @click.command()
 @click.option(
     "--data_dir",
-    default="../../models",  # relatieve path t.o.v. scripts/
-    help="Directory where model.pkl and dv.pkl are."
+    default="models",
+    help="Directory where train.pkl and val.pkl are stored."
 )
 @click.option(
     "--num_trials",
@@ -34,33 +30,9 @@ def load_pickle(path: Path):
     help="Number of experiments to try"
 )
 def run_optimization(data_dir: str, num_trials: int):
-    data_path = Path(data_dir).resolve()
-    model_path = data_path / "model.pkl"
-    dv_path = data_path / "dv.pkl"
-
-    # Load features & vectorizer
-    df = pd.read_csv(Path(__file__).resolve(
-    ).parents[1] / "data" / "StudentsPerformance.csv")
-    df["pass_math"] = (df["math score"] >= 50).astype(int)
-
-    categorical = [
-        "gender",
-        "race/ethnicity",
-        "parental level of education",
-        "lunch",
-        "test preparation course"
-    ]
-
-    dv = load_pickle(dv_path)
-    df_train, df_val = train_test_split(df, test_size=0.2, random_state=42)
-
-    train_dicts = df_train[categorical].to_dict(orient="records")
-    val_dicts = df_val[categorical].to_dict(orient="records")
-
-    X_train = dv.transform(train_dicts)
-    y_train = df_train["pass_math"]
-    X_val = dv.transform(val_dicts)
-    y_val = df_val["pass_math"]
+    data_path = Path(data_dir)
+    X_train, y_train = load_pickle(data_path / "train.pkl")
+    X_val, y_val = load_pickle(data_path / "val.pkl")
 
     def objective(trial):
         params = {

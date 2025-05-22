@@ -1,0 +1,7 @@
+pandas
+scikit-learn==1.5.1
+mlflow
+optuna
+click
+numpy
+joblib

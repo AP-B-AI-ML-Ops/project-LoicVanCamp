@@ -1,7 +1,7 @@
 pandas
-pickle
 seaborn
 matplotlib
-sklearn
+scikit-learn == 1.5.1
 mlflow
 psycopg2-binary
+optuna
