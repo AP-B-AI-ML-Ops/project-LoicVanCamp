@@ -105,7 +105,7 @@ def prep_features_task(df, dv):
 
 @task
 def save_result_task(df_result, run_id):
-    path = os.path.join("batch-data", "report", "students")
+    path = os.path.join("batch_data", "report", "students")
     os.makedirs(path, exist_ok=True)
     df_result.to_csv(os.path.join(path, f"{run_id}.csv"), index=False)
     print(f"Saved to {os.path.join(path, f'{run_id}.csv')}")
@@ -119,7 +119,7 @@ def save_metrics_task(run_id, run_name, rmse):
         "run_name": run_name,
         "rmse": rmse
     }
-    path = os.path.join("batch-data", "report", "students")
+    path = os.path.join("batch_data", "report", "students")
     os.makedirs(path, exist_ok=True)
     metrics_path = os.path.join(path, f"{run_id}_metrics.json")
     with open(metrics_path, "w") as f:

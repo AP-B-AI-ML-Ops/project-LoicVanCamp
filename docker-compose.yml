@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
 
   batch-service:
-    build: ./deploy-batch 
+    build: ./deploy_batch 
     depends_on:
       - orchestration
       - model-training
@@ -42,7 +42,7 @@ services:
       - ./train/data:/data
       - ./models:/models
       - ./mlruns:/mlruns
-      - ./batch-data:/batch-data
+      - ./batch_data:/batch_data
     restart: on-failure
 
   model-training:
@@ -65,7 +65,7 @@ services:
       - ./monitor-reporting/.env
     volumes:
       - ./monitor-reporting/metrics:/metrics
-      - ./batch-data:/batch-data
+      - ./batch_data:/batch_data
       - ./mlruns:/mlruns
     restart: on-failure
     
@@ -76,7 +76,7 @@ services:
       - "3400:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./batch-data:/batch-data
+      - ./batch_data:/batch_data
     restart: unless-stopped
 
 volumes:

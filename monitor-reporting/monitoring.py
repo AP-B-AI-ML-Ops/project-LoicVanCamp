@@ -33,15 +33,15 @@ def load_model(model_name, model_version):
 
 @task
 def load_data():
-    reference_data = pd.read_csv("batch-data/report/students/reference.csv")
-    current_data = pd.read_csv("batch-data/report/students/current.csv")
+    reference_data = pd.read_csv("batch_data/report/students/reference.csv")
+    current_data = pd.read_csv("batch_data/report/students/current.csv")
     return reference_data, current_data
 
 
 @task
 def load_run_metrics():
     # Zoek het nieuwste metrics-bestand
-    candidates = glob("batch-data/report/students/*_metrics.json")
+    candidates = glob("batch_data/report/students/*_metrics.json")
     if not candidates:
         return {}
     latest = max(candidates, key=os.path.getctime)
@@ -81,8 +81,8 @@ def extract_metrics(snapshot, run_metrics):
             "value": value_with_meta
         })
     metrics_df = pd.DataFrame(result_data)
-    metrics_df.to_csv("batch-data/report/evidently_metrics.csv", index=False)
-    print("✅ Evidently metrics saved to batch-data/report/evidently_metrics.csv")
+    metrics_df.to_csv("batch_data/report/evidently_metrics.csv", index=False)
+    print("✅ Evidently metrics saved to batch_data/report/evidently_metrics.csv")
     return metrics_df
 
 
@@ -104,10 +104,10 @@ def save_to_db(metrics_df):
 
 @task
 def ensure_reference_csv():
-    ref_path = "batch-data/report/students/reference.csv"
+    ref_path = "batch_data/report/students/reference.csv"
     if not os.path.exists(ref_path):
         # Zoek het nieuwste batch-resultaat
-        candidates = glob("batch-data/report/students/*.csv")
+        candidates = glob("batch_data/report/students/*.csv")
         candidates = [f for f in candidates if not f.endswith("reference.csv")]
         if not candidates:
             raise FileNotFoundError(
@@ -121,10 +121,10 @@ def ensure_reference_csv():
 
 @task
 def ensure_current_csv():
-    curr_path = "batch-data/report/students/current.csv"
+    curr_path = "batch_data/report/students/current.csv"
     if not os.path.exists(curr_path):
         # Zoek het nieuwste batch-resultaat
-        candidates = glob("batch-data/report/students/*.csv")
+        candidates = glob("batch_data/report/students/*.csv")
         candidates = [f for f in candidates if not f.endswith(
             "reference.csv") and not f.endswith("current.csv")]
         if not candidates:
