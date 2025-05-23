@@ -1,5 +1,10 @@
 # pylint: disable=<C0103>
-"""Register the best Random Forest model from Hyperopt runs."""
+"""Register the best Random Forest model from Hyperopt runs.
+
+This script loads the best hyperparameter optimization (HPO) runs from MLflow,
+re-trains and logs models, and registers the best model in the MLflow Model Registry.
+"""
+# pylint: disable=no-value-for-parameter
 import pickle
 from pathlib import Path
 
@@ -20,7 +25,7 @@ RF_PARAMS = [
     "min_samples_split",
     "min_samples_leaf",
     "random_state",
-    "n_jobs"
+    "n_jobs",
 ]
 
 mlflow.set_tracking_uri("http://experiment-tracking:5000")
@@ -29,11 +34,28 @@ mlflow.sklearn.autolog()
 
 
 def load_pickle(path: Path):
+    """Load a Python object from a pickle file.
+
+    Args:
+        path (Path): Path to the pickle file.
+
+    Returns:
+        Any: The loaded Python object.
+    """
     with path.open("rb") as f_in:
         return pickle.load(f_in)
 
 
 def train_and_log_model(data_path: Path, params: dict):
+    """Train a RandomForestClassifier with given parameters, log to MLflow, and save the model.
+
+    Args:
+        data_path (Path): Directory containing train/val/test pickle files.
+        params (dict): Hyperparameters for the RandomForestClassifier.
+
+    Returns:
+        str: The MLflow run ID.
+    """
     X_train, y_train = load_pickle(data_path / "train.pkl")
     X_val, y_val = load_pickle(data_path / "val.pkl")
     X_test, y_test = load_pickle(data_path / "test.pkl")
@@ -44,7 +66,7 @@ def train_and_log_model(data_path: Path, params: dict):
             if param in params:
                 try:
                     params[param] = int(params[param])
-                except Exception:
+                except (ValueError, TypeError):
                     pass
 
         clf = RandomForestClassifier(**params)
@@ -69,50 +91,53 @@ def train_and_log_model(data_path: Path, params: dict):
 @click.option(
     "--data_path",
     default="models",
-    help="Location where the processed students performance data was saved"
+    help="Location where the processed students performance data was saved",
 )
 @click.option(
     "--top_n",
     default=5,
     type=int,
-    help="Number of top models that need to be evaluated to decide which one to promote"
+    help="Number of top models that need to be evaluated to decide which one to promote",
 )
 def run_register_model(data_path: str, top_n: int):
+    """Find, retrain, and register the best model from HPO runs.
+
+    Args:
+        data_path (str): Directory containing processed data.
+        top_n (int): Number of top HPO runs to consider.
+    """
     data_path = Path(data_path)
     client = MlflowClient()
 
-    # Zoek top N HPO-runs (op basis van accuracy)
+    # Search top N HPO-runs (by accuracy)
     hpo_experiment = client.get_experiment_by_name(HPO_EXPERIMENT_NAME)
     hpo_runs = client.search_runs(
         experiment_ids=hpo_experiment.experiment_id,
         run_view_type=ViewType.ACTIVE_ONLY,
         max_results=top_n,
-        order_by=["metrics.accuracy DESC"]
+        order_by=["metrics.accuracy DESC"],
     )
 
     print(f"🔍 HPO-runs found: {len(hpo_runs)}")
 
-    # Hertrain en log met alle top runs
+    # Retrain and log with all top runs
     for run in hpo_runs:
         train_and_log_model(data_path, run.data.params)
 
-    # Zoek beste model op test_accuracy
+    # Search best model by test_accuracy
     experiment = client.get_experiment_by_name(EXPERIMENT_NAME)
     best_run = client.search_runs(
         experiment_ids=experiment.experiment_id,
         run_view_type=ViewType.ACTIVE_ONLY,
         max_results=1,
-        order_by=["metrics.test_accuracy DESC"]
+        order_by=["metrics.test_accuracy DESC"],
     )[0]
 
     best_run_id = best_run.info.run_id
     model_uri = f"runs:/{best_run_id}/model"
 
-    # Registreer het model
-    mlflow.register_model(
-        model_uri=model_uri,
-        name="rf-math-pass-predictor"
-    )
+    # Register the model
+    mlflow.register_model(model_uri=model_uri, name="rf-math-pass-predictor")
 
     print(f"✅ Best model registered with run ID: {best_run_id}")
 

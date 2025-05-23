@@ -17,9 +17,9 @@ services:
     ports:
       - "5000:5000"
     command: >
-      mlflow server 
-      --backend-store-uri postgresql://postgres:postgres@backend-database:5432/mlflow_db 
-      --default-artifact-root /mlruns 
+      mlflow server
+      --backend-store-uri postgresql://postgres:postgres@backend-database:5432/mlflow_db
+      --default-artifact-root /mlruns
       --host 0.0.0.0
     depends_on:
       - backend-database
@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
 
   batch-service:
-    build: ./deploy_batch 
+    build: ./deploy_batch
     depends_on:
       - orchestration
       - model-training
@@ -68,7 +68,7 @@ services:
       - ./batch_data:/batch_data
       - ./mlruns:/mlruns
     restart: on-failure
-    
+
 
   grafana:
     image: grafana/grafana

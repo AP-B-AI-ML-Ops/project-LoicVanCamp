@@ -1,4 +1,7 @@
-FROM python:3.12-bullseye
+FROM python:3.13-alpine
+
+# Update system packages to address vulnerabilities
+RUN apt-get update && apt-get upgrade -y && apt-get clean
 
 RUN pip install -U pip
 

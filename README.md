@@ -45,9 +45,9 @@ The overall goal is to build an end-to-end machine learning pipeline that integr
    - If necessary, the flow will trigger a retraining action if a performance threshold is violated.
 
 ### Actions:
-1. **Data Preprocessing:** 
+1. **Data Preprocessing:**
    - Prepare the dataset by encoding categorical features and splitting the data into training and test sets.
-   
+
 2. **Model Training:**
    - Use a machine learning algorithm (e.g., RandomForestClassifier) to train the model.
    - Log experiments and models using **MLflow** for versioning and tracking.

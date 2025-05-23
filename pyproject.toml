@@ -1,0 +1,41 @@
+[tool.pylint.messages_control]
+disable = [
+    "import-error",                # Common in ML projects with many dependencies
+    "invalid-name",                # For variable names like X_train, y_test, etc.
+    "too-few-public-methods",      # Common in data/model classes
+    "too-many-arguments",          # Common in ML functions
+    "too-many-locals",             # Common in ML functions
+    "too-many-statements",         # Common in ML scripts
+    "duplicate-code",              # Acceptable in test/train scripts sometimes
+    "line-too-long",               # Acceptable in scripts
+]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.basic]
+good-names = [
+    "X", "y", "df", "X_train", "y_train", "X_val", "y_val", "X_test", "y_test"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_third_party = [
+    "mlflow",
+    "sklearn",
+    "pandas",
+    "numpy",
+    "click",
+    "optuna",
+    "prefect",
+    "sqlalchemy",
+    "dotenv",
+    "evidently",
+    "joblib",
+    "requests"
+]

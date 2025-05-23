@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 *.so
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
 # Environment files
 .env
 .venv/
@@ -52,14 +49,23 @@ poetry.lock
 Pipfile.lock
 
 # models
-models/.pkl
 models/
 
-# mlflow
-mlruns/
+# Test cache and reports
+.pytest_cache/
+.cache/
+*.cover
+*.coverage
+coverage.xml
+test-results/
+nosetests.xml
+pytestdebug.log
 
-#csv files
-*.csv
+# Batch/test/monitoring artifacts
+batch_data/report/
 
-# metrics
-*.json
+# Batch/test/monitoring artifacts
+batch_data/report/
+batch-data/report/students/*.csv
+batch-data/report/students/*.json
+batch-data/report/evidently_metrics.csv
