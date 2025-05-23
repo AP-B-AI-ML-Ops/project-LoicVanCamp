@@ -1,0 +1,15 @@
+prefect
+tqdm
+requests
+joblib
+pyarrow
+psycopg2
+psycopg2-binary
+evidently
+pandas
+numpy
+scikit-learn
+jupyter
+mlflow
+sqlalchemy
+sqlalchemy_utils

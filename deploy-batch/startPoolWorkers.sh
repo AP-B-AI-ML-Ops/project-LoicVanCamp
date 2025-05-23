@@ -4,3 +4,5 @@ prefect work-pool create --type process batch --overwrite
 prefect worker start -p batch &
 
 python /batch.py
+
+prefect deployment run 'run-batch/batch-flow'

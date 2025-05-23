@@ -4,6 +4,7 @@ import pickle
 from pathlib import Path
 
 import click
+import joblib
 import mlflow
 from mlflow.entities import ViewType
 from mlflow.tracking import MlflowClient
@@ -38,7 +39,7 @@ def train_and_log_model(data_path: Path, params: dict):
     X_test, y_test = load_pickle(data_path / "test.pkl")
 
     with mlflow.start_run() as run:
-        # Cast parameters to int where nodig
+        # Cast parameters to int where needed
         for param in RF_PARAMS:
             if param in params:
                 try:
@@ -58,6 +59,8 @@ def train_and_log_model(data_path: Path, params: dict):
 
         # Log model
         mlflow.sklearn.log_model(clf, artifact_path="model")
+        # Save the model in ./models/model.pkl
+        joblib.dump(clf, "models/model.pkl")
 
         return run.info.run_id
 

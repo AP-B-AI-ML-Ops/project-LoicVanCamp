@@ -8,6 +8,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
 
   experiment-tracking:
@@ -24,20 +25,25 @@ services:
       - backend-database
     volumes:
       - ./mlruns:/mlruns
+    restart: unless-stopped
 
   orchestration:
     build: ./backend-service-orchestration
     ports:
       - 4200:4200
+    restart: unless-stopped
 
   batch-service:
     build: ./deploy-batch 
     depends_on:
       - orchestration
+      - model-training
     volumes:
       - ./train/data:/data
       - ./models:/models
       - ./mlruns:/mlruns
+      - ./batch-data:/batch-data
+    restart: on-failure
 
   model-training:
     build: ./train
@@ -49,6 +55,30 @@ services:
       - ./mlruns:/mlruns
     environment:
       - MLFLOW_TRACKING_URI=http://experiment-tracking:5000
+    restart: on-failure
+
+  monitoring:
+    build: ./monitor-reporting
+    depends_on:
+      - batch-service
+    env_file:
+      - ./monitor-reporting/.env
+    volumes:
+      - ./monitor-reporting/metrics:/metrics
+      - ./batch-data:/batch-data
+      - ./mlruns:/mlruns
+    restart: on-failure
+    
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3400:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./batch-data:/batch-data
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  grafana-data:

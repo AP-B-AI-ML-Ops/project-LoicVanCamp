@@ -7,6 +7,10 @@ from prefect import flow, task
 import os
 import requests
 import pickle
+import time
+import json
+from sklearn.metrics import mean_squared_error
+import numpy as np
 
 mlflow.set_tracking_uri("http://experiment-tracking:5000")
 client = MlflowClient("http://experiment-tracking:5000")
@@ -59,6 +63,26 @@ def load_model():
     return model
 
 
+def wait_for_model(model_path: str, timeout: int = 300, interval: int = 5):
+    """Wait for the model file to exist, with a timeout."""
+    waited = 0
+    while not os.path.exists(model_path):
+        if waited >= timeout:
+            raise TimeoutError(
+                f"Model file {model_path} not found after {timeout} seconds.")
+        print(
+            f"⏳ Wachten op modelbestand: {model_path} ({waited}/{timeout} sec)")
+        time.sleep(interval)
+        waited += interval
+    print(f"✅ Modelbestand gevonden: {model_path}")
+
+
+@task
+def wait_for_model_task(model_path, timeout=300, interval=5):
+    """Wait for the model file to exist."""
+    wait_for_model(model_path, timeout, interval)
+
+
 @task
 def load_model_task():
     return load_model()
@@ -87,8 +111,25 @@ def save_result_task(df_result, run_id):
     print(f"Saved to {os.path.join(path, f'{run_id}.csv')}")
 
 
+@task
+def save_metrics_task(run_id, run_name, rmse):
+    """Save run metrics as JSON for monitoring."""
+    metrics = {
+        "run_id": run_id,
+        "run_name": run_name,
+        "rmse": rmse
+    }
+    path = os.path.join("batch-data", "report", "students")
+    os.makedirs(path, exist_ok=True)
+    metrics_path = os.path.join(path, f"{run_id}_metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f)
+    print(f"Saved metrics to {metrics_path}")
+
+
 @flow
-def run_batch(filepath, dv_path):
+def run_batch(filepath, dv_path, model_path="models/model.pkl"):
+    wait_for_model(model_path)
     model = load_model_task()
     dv = load_dv_task(dv_path)
     df = read_dataframe_task(filepath)
@@ -96,11 +137,19 @@ def run_batch(filepath, dv_path):
     y_pred = model.predict(X)
     df_result = df.copy()
     run_id = getattr(getattr(model, "metadata", None), "run_id", "unknown")
+    run_name = getattr(getattr(model, "metadata", None), "run_name", "unknown")
     df_result["pass_math_pred"] = y_pred
     if "pass_math" in df_result.columns:
-        df_result["pass_math_delta"] = df_result["pass_math"] - df_result["pass_math_pred"]
+        df_result["pass_math_delta"] = df_result["pass_math"] - \
+            df_result["pass_math_pred"]
+        # Bereken RMSE
+        rmse = np.sqrt(mean_squared_error(
+            df_result["pass_math"], df_result["pass_math_pred"]))
+    else:
+        rmse = None
     df_result["model_id"] = run_id
     save_result_task(df_result, run_id)
+    save_metrics_task(run_id, run_name, rmse)
 
 
 if __name__ == "__main__":
@@ -108,6 +157,7 @@ if __name__ == "__main__":
         name="batch-flow",
         parameters={
             "filepath": "data/StudentsPerformance.csv",
-            "dv_path": "models/dv.pkl"
+            "dv_path": "models/dv.pkl",
+            "model_path": "models/model.pkl"
         },
     )
