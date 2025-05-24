@@ -77,6 +77,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./batch_data:/batch_data
+      - ./monitor-reporting/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitor-reporting/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards
     restart: unless-stopped
 
 volumes:
