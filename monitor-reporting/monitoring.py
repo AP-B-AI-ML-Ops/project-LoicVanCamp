@@ -9,7 +9,6 @@ It uses Evidently for drift detection and SQLAlchemy for database operations.
 
 import json
 import os
-import shutil
 from datetime import datetime, timezone
 from glob import glob
 
@@ -102,7 +101,7 @@ def extract_metrics(snapshot, run_metrics):
     for metric in json_data["metrics"]:
         metric_id = metric["metric_id"]
         value = metric["value"]
-        # Zorg dat value altijd een dict is
+        # Ensure value is always a dict
         if isinstance(value, dict):
             value_with_meta = dict(value)
         else:
@@ -153,48 +152,6 @@ def save_to_db(metrics_df):
     print("✅ Evidently metrics saved to database")
 
 
-@task
-def ensure_reference_csv():
-    """Ensure that reference.csv exists, creating it from the latest batch result if needed."""
-    ref_path = "batch_data/report/students/reference.csv"
-    if not os.path.exists(ref_path):
-        # Zoek het nieuwste batch-resultaat
-        candidates = glob("batch_data/report/students/*.csv")
-        candidates = [f for f in candidates if not f.endswith("reference.csv")]
-        if not candidates:
-            raise FileNotFoundError(
-                "Geen batch-resultaten gevonden om reference.csv aan te maken!"
-            )
-        latest = max(candidates, key=os.path.getctime)
-        shutil.copy(latest, ref_path)
-        print(f"✅ reference.csv aangemaakt op basis van: {latest}")
-    else:
-        print("ℹ️ reference.csv bestaat al.")
-
-
-@task
-def ensure_current_csv():
-    """Ensure that current.csv exists, creating it from the latest batch result if needed."""
-    curr_path = "batch_data/report/students/current.csv"
-    if not os.path.exists(curr_path):
-        # Zoek het nieuwste batch-resultaat
-        candidates = glob("batch_data/report/students/*.csv")
-        candidates = [
-            f
-            for f in candidates
-            if not f.endswith("reference.csv") and not f.endswith("current.csv")
-        ]
-        if not candidates:
-            raise FileNotFoundError(
-                "Geen batch-resultaten gevonden om current.csv aan te maken!"
-            )
-        latest = max(candidates, key=os.path.getctime)
-        shutil.copy(latest, curr_path)
-        print(f"✅ current.csv aangemaakt op basis van: {latest}")
-    else:
-        print("ℹ️ current.csv bestaat al.")
-
-
 @flow
 def run_monitoring(model_name: str = "rf-math-pass-predictor", model_version: int = 1):
     """Main Prefect flow for running the monitoring pipeline.
@@ -205,8 +162,6 @@ def run_monitoring(model_name: str = "rf-math-pass-predictor", model_version: in
     """
     load_env()
     load_model(model_name, model_version)
-    ensure_reference_csv()
-    ensure_current_csv()
     reference_data, current_data = load_data()
     run_metrics = load_run_metrics()
     snapshot = generate_report(reference_data, current_data)
@@ -216,6 +171,9 @@ def run_monitoring(model_name: str = "rf-math-pass-predictor", model_version: in
 
 if __name__ == "__main__":
     run_monitoring.serve(
-        name="monitoring-flow",
-        parameters={"model_name": "rf-math-pass-predictor", "model_version": 1},
+        name="monitoring-pipeline",
+        parameters={
+            "model_name": "rf-math-pass-predictor",
+            "model_version": 1,
+        },
     )

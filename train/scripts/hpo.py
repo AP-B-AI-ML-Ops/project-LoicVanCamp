@@ -12,11 +12,11 @@ from pathlib import Path
 import click
 import mlflow
 import optuna
+from mlflow.tracking import MlflowClient
 from optuna.samplers import TPESampler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-
-from .utils import load_pickle
+from utils import load_pickle
 
 mlflow.set_tracking_uri(
     os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000")
@@ -25,32 +25,38 @@ mlflow.set_experiment("student-performance-hpo")
 
 
 @click.command()
-@click.option(
-    "--data_dir",
-    default="models",
-    help="Directory where train.pkl and val.pkl are stored.",
-)
 @click.option("--num_trials", default=10, help="Number of experiments to try")
-def run_optimization(data_dir: str, num_trials: int):
+def run_optimization(num_trials: int):
     """Run hyperparameter optimization for RandomForestClassifier.
 
     Args:
-        data_dir (str): Directory containing train.pkl and val.pkl.
         num_trials (int): Number of Optuna trials to run.
     """
-    data_path = Path(data_dir)
-    X_train, y_train = load_pickle(data_path / "train.pkl")
-    X_val, y_val = load_pickle(data_path / "val.pkl")
+    # Get latest preprocess run
+    client = MlflowClient()
+    preprocess_exp = client.get_experiment_by_name("preprocess")
+    runs = client.search_runs(
+        experiment_ids=preprocess_exp.experiment_id,
+        run_view_type=1,
+        max_results=1,
+        order_by=["start_time DESC"],
+    )
+    if not runs:
+        raise RuntimeError("No runs found in 'preprocess' experiment.")
+    preprocess_run_id = runs[0].info.run_id
+
+    # Download data from MLflow artifacts
+    train_path = mlflow.artifacts.download_artifacts(
+        run_id=preprocess_run_id, artifact_path="data/train.pkl"
+    )
+    val_path = mlflow.artifacts.download_artifacts(
+        run_id=preprocess_run_id, artifact_path="data/val.pkl"
+    )
+
+    X_train, y_train = load_pickle(Path(train_path))
+    X_val, y_val = load_pickle(Path(val_path))
 
     def objective(trial):
-        """Objective function for Optuna to optimize RandomForest hyperparameters.
-
-        Args:
-            trial (optuna.trial.Trial): Optuna trial object.
-
-        Returns:
-            float: Negative accuracy score (since Optuna minimizes).
-        """
         params = {
             "n_estimators": trial.suggest_int("n_estimators", 10, 100),
             "max_depth": trial.suggest_int("max_depth", 3, 20),

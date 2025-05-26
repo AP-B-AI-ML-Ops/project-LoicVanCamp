@@ -19,15 +19,13 @@ def run_pipeline():
             "scripts/preprocess_data.py",
             "--raw_data_path",
             "data/StudentsPerformance.csv",
-            "--dest_path",
-            "models",
         ],
         check=True,
     )
 
     print("=== Model training ===")
     subprocess.run(
-        ["python", "scripts/train.py", "--data_path", "models"],
+        ["python", "scripts/train.py"],
         check=True,
     )
 
@@ -36,8 +34,6 @@ def run_pipeline():
         [
             "python",
             "scripts/hpo.py",
-            "--data_dir",
-            "models",
             "--num_trials",
             "20",
         ],
@@ -49,8 +45,6 @@ def run_pipeline():
         [
             "python",
             "scripts/register_model.py",
-            "--data_path",
-            "models",
             "--top_n",
             "5",
         ],

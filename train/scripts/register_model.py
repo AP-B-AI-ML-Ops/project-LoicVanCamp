@@ -4,12 +4,13 @@
 This script loads the best hyperparameter optimization (HPO) runs from MLflow,
 re-trains and logs models, and registers the best model in the MLflow Model Registry.
 """
-# pylint: disable=no-value-for-parameter
+
+# pylint: disable=no-value-for-parameter,import-error,invalid-name
+
 import pickle
 from pathlib import Path
 
 import click
-import joblib
 import mlflow
 from mlflow.entities import ViewType
 from mlflow.tracking import MlflowClient
@@ -46,20 +47,51 @@ def load_pickle(path: Path):
         return pickle.load(f_in)
 
 
-def train_and_log_model(data_path: Path, params: dict):
+def get_latest_preprocess_run_id():
+    """Get the latest run_id from the 'preprocess' experiment."""
+    client = MlflowClient()
+    preprocess_experiment = client.get_experiment_by_name("preprocess")
+    if preprocess_experiment is None:
+        raise RuntimeError("No 'preprocess' experiment found in MLflow.")
+    runs = client.search_runs(
+        experiment_ids=preprocess_experiment.experiment_id,
+        run_view_type=ViewType.ACTIVE_ONLY,
+        max_results=1,
+        order_by=["start_time DESC"],
+    )
+    if not runs:
+        raise RuntimeError("No runs found in 'preprocess' experiment.")
+    return runs[0].info.run_id
+
+
+def train_and_log_model(params: dict):
     """Train a RandomForestClassifier with given parameters, log to MLflow, and save the model.
 
     Args:
-        data_path (Path): Directory containing train/val/test pickle files.
         params (dict): Hyperparameters for the RandomForestClassifier.
 
     Returns:
         str: The MLflow run ID.
     """
-    X_train, y_train = load_pickle(data_path / "train.pkl")
-    X_val, y_val = load_pickle(data_path / "val.pkl")
-    X_test, y_test = load_pickle(data_path / "test.pkl")
 
+    # Get latest preprocess run_id
+    PREPROCESS_RUN_ID = get_latest_preprocess_run_id()
+
+    # Download data from MLflow artifacts
+    train_path = mlflow.artifacts.download_artifacts(
+        run_id=PREPROCESS_RUN_ID, artifact_path="data/train.pkl"
+    )
+    val_path = mlflow.artifacts.download_artifacts(
+        run_id=PREPROCESS_RUN_ID, artifact_path="data/val.pkl"
+    )
+    test_path = mlflow.artifacts.download_artifacts(
+        run_id=PREPROCESS_RUN_ID, artifact_path="data/test.pkl"
+    )
+    X_train, y_train = load_pickle(Path(train_path))
+    X_val, y_val = load_pickle(Path(val_path))
+    X_test, y_test = load_pickle(Path(test_path))
+    # Ensure experiment is set before logging
+    mlflow.set_experiment(EXPERIMENT_NAME)
     with mlflow.start_run() as run:
         # Cast parameters to int where needed
         for param in RF_PARAMS:
@@ -81,32 +113,24 @@ def train_and_log_model(data_path: Path, params: dict):
 
         # Log model
         mlflow.sklearn.log_model(clf, artifact_path="model")
-        # Save the model in ./models/model.pkl
-        joblib.dump(clf, "models/model.pkl")
+        mlflow.log_artifact("dv.pkl", artifact_path="model")
 
         return run.info.run_id
 
 
 @click.command()
 @click.option(
-    "--data_path",
-    default="models",
-    help="Location where the processed students performance data was saved",
-)
-@click.option(
     "--top_n",
     default=5,
     type=int,
     help="Number of top models that need to be evaluated to decide which one to promote",
 )
-def run_register_model(data_path: str, top_n: int):
+def run_register_model(top_n: int):
     """Find, retrain, and register the best model from HPO runs.
 
     Args:
-        data_path (str): Directory containing processed data.
         top_n (int): Number of top HPO runs to consider.
     """
-    data_path = Path(data_path)
     client = MlflowClient()
 
     # Search top N HPO-runs (by accuracy)
@@ -122,7 +146,7 @@ def run_register_model(data_path: str, top_n: int):
 
     # Retrain and log with all top runs
     for run in hpo_runs:
-        train_and_log_model(data_path, run.data.params)
+        train_and_log_model(run.data.params)
 
     # Search best model by test_accuracy
     experiment = client.get_experiment_by_name(EXPERIMENT_NAME)

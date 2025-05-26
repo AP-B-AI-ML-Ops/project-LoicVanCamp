@@ -1,4 +1,5 @@
 services:
+  # 1. Infrastructure services
   backend-database:
     build: ./backend-database
     container_name: backend-database
@@ -10,7 +11,32 @@ services:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3400:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./batch_data:/batch_data
+      - ./monitor-reporting/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitor-reporting/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards
+    restart: unless-stopped
 
+  orchestration:
+    build: ./backend-service-orchestration
+    environment:
+      - PREFECT_API_URL=http://localhost:4200/api
+      - PREFECT_ORION_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@backend-database:5432/prefect_orion
+    ports:
+      - 4200:4200
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://0.0.0.0:4200/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # 2. Services depending on infrastructure
   experiment-tracking:
     build: ./backend-service-experiment-tracking
     container_name: backend-service-experiment-tracking
@@ -27,60 +53,67 @@ services:
       - ./mlruns:/mlruns
     restart: unless-stopped
 
-  orchestration:
-    build: ./backend-service-orchestration
-    ports:
-      - 4200:4200
-    restart: unless-stopped
-
-  batch-service:
-    build: ./deploy_batch
-    depends_on:
-      - orchestration
-      - model-training
-    volumes:
-      - ./train/data:/data
-      - ./models:/models
-      - ./mlruns:/mlruns
-      - ./batch_data:/batch_data
-    restart: on-failure
-
+  # 3. Model training (needs experiment-tracking)
   model-training:
     build: ./train
     depends_on:
       - experiment-tracking
     volumes:
       - ./train/data:/app/data
-      - ./models:/app/models
       - ./mlruns:/mlruns
     environment:
       - MLFLOW_TRACKING_URI=http://experiment-tracking:5000
     restart: on-failure
 
+  # 4. Batch service (needs model-training, orchestration)
+  batch-service:
+    build: ./deploy_batch
+    depends_on:
+      orchestration:
+        condition: service_healthy
+      model-training:
+        condition: service_completed_successfully
+    environment:
+      - PREFECT_API_URL=http://orchestration:4200/api
+    volumes:
+      - ./train/data:/data
+      - ./mlruns:/mlruns
+      - ./batch_data:/app/batch_data
+    restart: on-failure
+
+  # 5. Monitoring (needs orchestration)
   monitoring:
     build: ./monitor-reporting
     depends_on:
-      - batch-service
+      - orchestration
     env_file:
       - ./monitor-reporting/.env
+    environment:
+      - PREFECT_API_URL=http://orchestration:4200/api
     volumes:
       - ./monitor-reporting/metrics:/metrics
-      - ./batch_data:/batch_data
+      - ./batch_data:/app/batch_data
       - ./mlruns:/mlruns
     restart: on-failure
 
+  deployment-trigger:
+    build: ./deployment-trigger
+    depends_on:
+      - batch-service
+      - monitoring
+    environment:
+      - PREFECT_API_URL=http://orchestration:4200/api
 
-  grafana:
-    image: grafana/grafana
+  # 6. API (build lasts)d lasts)
+  api:
+    build: ./api
     ports:
-      - "3400:3000"
+      - "8000:8000"
+    depends_on:
+      deployment-trigger:
+        condition: service_completed_successfully
     volumes:
-      - grafana-data:/var/lib/grafana
-      - ./batch_data:/batch_data
-      - ./monitor-reporting/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitor-reporting/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards
-    restart: unless-stopped
-
+      - ./mlruns:/mlruns
 volumes:
   pgdata:
   grafana-data:

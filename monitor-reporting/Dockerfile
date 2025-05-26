@@ -1,17 +1,18 @@
-FROM python:3.13-alpine
+FROM python:3.13-slim
 
-# Update system packages to address vulnerabilities
-RUN apt-get update && apt-get upgrade -y && apt-get clean
+WORKDIR /app
 
-RUN pip install -U pip
+RUN apt-get update && apt-get install -y curl
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt --upgrade
+RUN pip install --upgrade pip
 
-COPY . /
+COPY . /app
 
-RUN prefect config set PREFECT_API_URL=http://orchestration:4200/api
+RUN pip install --upgrade -r requirements.txt
 
-RUN chmod +x ./startPoolWorkers.sh
 
-CMD [ "bash", "/startPoolWorkers.sh" ]
+# Add startup script
+COPY startPoolWorkers.sh /app/startPoolWorkers.sh
+RUN chmod +x /app/startPoolWorkers.sh
+
+CMD ["/app/startPoolWorkers.sh"]

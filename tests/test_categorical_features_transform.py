@@ -26,7 +26,7 @@ def test_preprocess_transforms_categorical():
     dv = DictVectorizer()
     X, dv_fitted = preprocess(df, dv, fit_dv=True)
     assert X.shape[0] == 2
-    # Compatibiliteit met verschillende scikit-learn versies
+    # Compatibility with different scikit-learn versions
     if hasattr(dv_fitted, "feature_names_out_"):
         n_features = len(dv_fitted.feature_names_out_)
     else:

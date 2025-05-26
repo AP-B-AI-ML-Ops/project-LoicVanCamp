@@ -1,16 +1,11 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# System dependencies (for pandas, scikit-learn, enz.)
-RUN apt-get update && apt-get install -y gcc
+RUN pip install -U pip
 
-# Python dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . /app
 
-# Copy the rest of the application code
-COPY . .
+RUN pip install -r requirements.txt --upgrade
 
-# Set environment variables
 CMD ["python", "scripts/main.py"]

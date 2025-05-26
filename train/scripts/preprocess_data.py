@@ -8,9 +8,11 @@ and saves the processed datasets and vectorizer as pickle files.
 # pylint: disable=no-value-for-parameter,invalid-name
 
 import pickle
+import tempfile
 from pathlib import Path
 
 import click
+import mlflow
 import pandas as pd
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
@@ -59,21 +61,14 @@ def preprocess(df: pd.DataFrame, dv: DictVectorizer, fit_dv: bool = False):
     default="data/StudentsPerformance.csv",
     help="Location where the students performance data was saved",
 )
-@click.option(
-    "--dest_path",
-    default="models",
-    help="Location where the resulting files will be saved",
-)
-def run_data_prep(raw_data_path: str, dest_path: str):
-    """Main function to preprocess data and save train/val/test splits and vectorizer.
+def run_data_prep(raw_data_path: str):
+    """Main function to preprocess data and log train/val/test splits and vectorizer to MLflow.
 
     Args:
         raw_data_path (str): Path to the raw CSV data file.
-        dest_path (str): Directory where processed files will be saved.
     """
     # Load dataset
     raw_data_path = Path(raw_data_path)
-    dest_path = Path(dest_path)
     df = pd.read_csv(raw_data_path)
 
     # Create target column
@@ -93,14 +88,28 @@ def run_data_prep(raw_data_path: str, dest_path: str):
     X_val, _ = preprocess(df_val, dv, fit_dv=False)
     X_test, _ = preprocess(df_test, dv, fit_dv=False)
 
-    # Save
-    dest_path.mkdir(parents=True, exist_ok=True)
-    dump_pickle(dv, dest_path / "dv.pkl")
-    dump_pickle((X_train, y_train), dest_path / "train.pkl")
-    dump_pickle((X_val, y_val), dest_path / "val.pkl")
-    dump_pickle((X_test, y_test), dest_path / "test.pkl")
-
-    print(f"✅ Preprocessing completed. Data saved in: {dest_path}")
+    # Save and log to MLflow
+    mlflow.set_experiment("preprocess")
+    with mlflow.start_run(run_name="preprocess") as run:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            train_pkl = tmpdir / "train.pkl"
+            val_pkl = tmpdir / "val.pkl"
+            test_pkl = tmpdir / "test.pkl"
+            dv_pkl = tmpdir / "dv.pkl"
+            with train_pkl.open("wb") as f:
+                pickle.dump((X_train, y_train), f)
+            with val_pkl.open("wb") as f:
+                pickle.dump((X_val, y_val), f)
+            with test_pkl.open("wb") as f:
+                pickle.dump((X_test, y_test), f)
+            with dv_pkl.open("wb") as f:
+                pickle.dump(dv, f)
+            mlflow.log_artifact(str(train_pkl), artifact_path="data")
+            mlflow.log_artifact(str(val_pkl), artifact_path="data")
+            mlflow.log_artifact(str(test_pkl), artifact_path="data")
+            mlflow.log_artifact(str(dv_pkl), artifact_path="data")
+    print(f"✅ Preprocessing completed. Data logged to MLflow run: {run.info.run_id}")
 
 
 if __name__ == "__main__":

@@ -1,14 +1,17 @@
-FROM python:3.12-bullseye
+FROM python:3.13-slim
 
-RUN pip install -U pip
+WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt --upgrade
+RUN apt-get update && apt-get install -y curl
 
-COPY . /
+RUN pip install --upgrade pip
 
-RUN prefect config set PREFECT_API_URL=http://orchestration:4200/api
+COPY . /app
 
-RUN chmod +x ./startPoolWorkers.sh
+RUN pip install --upgrade -r requirements.txt
 
-CMD [ "bash", "./startPoolWorkers.sh" ]
+# Add startup script
+COPY startPoolWorkers.sh /app/startPoolWorkers.sh
+RUN chmod +x /app/startPoolWorkers.sh
+
+CMD ["/app/startPoolWorkers.sh"]

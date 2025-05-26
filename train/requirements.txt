@@ -1,7 +1,9 @@
 pandas
-scikit-learn==1.5.1
+scikit-learn
 mlflow
 optuna
 click
 numpy
 joblib
+scikit-learn
+pathlib

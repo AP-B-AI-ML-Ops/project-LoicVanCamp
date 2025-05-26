@@ -10,6 +10,7 @@ import json
 import os
 import pickle
 import time
+from pathlib import Path
 
 import mlflow
 import numpy as np
@@ -86,20 +87,22 @@ def get_latest_version(registered_model_name):
     """
     versions = client.get_latest_versions(registered_model_name)
     if versions:
-        return versions[-1].version
+        return versions[-1]
     raise RuntimeError("No model versions found.")
 
 
-def load_model():
-    """Load the latest version of the registered model from MLflow.
-
-    Returns:
-        mlflow.pyfunc.PyFuncModel: Loaded model.
-    """
-    print("...loading model")
+def load_model_and_dv():
+    """Load the latest model and DictVectorizer from MLflow."""
+    print("...loading model and DictVectorizer from MLflow")
     latest_version = get_latest_version(model_name)
-    model = mlflow.pyfunc.load_model(f"models:/{model_name}/{latest_version}")
-    return model
+    model = mlflow.pyfunc.load_model(f"models:/{model_name}/{latest_version.version}")
+    # Download dv.pkl from the run's artifacts
+    run_id = latest_version.run_id
+    dv_path = mlflow.artifacts.download_artifacts(
+        run_id=run_id, artifact_path="model/dv.pkl"
+    )
+    dv = load_dv(Path(dv_path))  # Use Path() here
+    return model, dv, run_id, latest_version.name
 
 
 def wait_for_model(model_path: str, timeout: int = 300, interval: int = 5):
@@ -119,10 +122,10 @@ def wait_for_model(model_path: str, timeout: int = 300, interval: int = 5):
             raise TimeoutError(
                 f"Model file {model_path} not found after {timeout} seconds."
             )
-        print(f"⏳ Wachten op modelbestand: {model_path} ({waited}/{timeout} sec)")
+        print(f"⏳ Waiting for model file: {model_path} ({waited}/{timeout} sec)")
         time.sleep(interval)
         waited += interval
-    print(f"✅ Modelbestand gevonden: {model_path}")
+    print(f"✅ Model file found: {model_path}")
 
 
 @task
@@ -135,16 +138,6 @@ def wait_for_model_task(model_path, timeout=300, interval=5):
         interval (int, optional): Interval between checks in seconds. Defaults to 5.
     """
     wait_for_model(model_path, timeout, interval)
-
-
-@task
-def load_model_task():
-    """Prefect task to load the latest model from MLflow.
-
-    Returns:
-        mlflow.pyfunc.PyFuncModel: Loaded model.
-    """
-    return load_model()
 
 
 @task
@@ -188,17 +181,21 @@ def prep_features_task(df, dv):
 
 
 @task
-def save_result_task(df_result, run_id):
-    """Save prediction results to a CSV file.
-
-    Args:
-        df_result (pd.DataFrame): DataFrame with prediction results.
-        run_id (str): Run ID for naming the output file.
-    """
+def save_result_task(df_result, run_id, update_reference=False):
+    """Save prediction results to a CSV file and current.csv. Optionally update reference.csv."""
     path = os.path.join("batch_data", "report", "students")
     os.makedirs(path, exist_ok=True)
-    df_result.to_csv(os.path.join(path, f"{run_id}.csv"), index=False)
-    print(f"Saved to {os.path.join(path, f'{run_id}.csv')}")
+    result_path = os.path.join(path, f"{run_id}.csv")
+    reference_path = os.path.join(path, "reference.csv")
+    current_path = os.path.join(path, "current.csv")
+    df_result.to_csv(result_path, index=False)
+    df_result.to_csv(current_path, index=False)
+    # Only update reference.csv if requested or if it doesn't exist
+    if update_reference or not os.path.exists(reference_path):
+        df_result.to_csv(reference_path, index=False)
+        print(f"Saved to {result_path}, {current_path}, and updated {reference_path}")
+    else:
+        print(f"Saved to {result_path}, {current_path} (reference.csv unchanged)")
 
 
 @task
@@ -219,46 +216,52 @@ def save_metrics_task(run_id, run_name, rmse):
     print(f"Saved metrics to {metrics_path}")
 
 
+@task
+def load_model_and_dv_task():
+    """Prefect task to load the latest model and DictVectorizer from MLflow.
+
+    Returns:
+        tuple: (model, dv, run_id, run_name)
+    """
+    return load_model_and_dv()
+
+
 @flow
-def run_batch(filepath, dv_path, model_path="models/model.pkl"):
-    """Main Prefect flow for running batch prediction.
+def run_batch(
+    filepath: str,
+):
+    """Run batch prediction on the provided CSV file.
 
     Args:
-        filepath (str): Path to the input CSV file.
-        dv_path (str): Path to the DictVectorizer pickle file.
-        model_path (str, optional): Path to the model file. Defaults to "models/model.pkl".
+        filepath (str): Path to the input CSV file for batch prediction.
+
+    This flow loads the latest model and DictVectorizer from MLflow,
+    reads the input data, performs predictions, saves results and metrics.
     """
-    wait_for_model(model_path)
-    model = load_model_task()
-    dv = load_dv_task(dv_path)
+    model, dv, run_id, run_name = load_model_and_dv_task()
     df = read_dataframe_task(filepath)
     X = prep_features_task(df, dv)
     y_pred = model.predict(X)
     df_result = df.copy()
-    run_id = getattr(getattr(model, "metadata", None), "run_id", "unknown")
-    run_name = getattr(getattr(model, "metadata", None), "run_name", "unknown")
     df_result["pass_math_pred"] = y_pred
     if "pass_math" in df_result.columns:
         df_result["pass_math_delta"] = (
             df_result["pass_math"] - df_result["pass_math_pred"]
         )
-        # Bereken RMSE
         rmse = np.sqrt(
             mean_squared_error(df_result["pass_math"], df_result["pass_math_pred"])
         )
     else:
         rmse = None
     df_result["model_id"] = run_id
-    save_result_task(df_result, run_id)
+    save_result_task(df_result, run_id, update_reference=False)
     save_metrics_task(run_id, run_name, rmse)
 
 
 if __name__ == "__main__":
     run_batch.serve(
-        name="batch-flow",
+        name="batch-predictor",
         parameters={
-            "filepath": "data/StudentsPerformance.csv",
-            "dv_path": "models/dv.pkl",
-            "model_path": "models/model.pkl",
+            "filepath": "/app/batch_data/Students.csv",
         },
     )

@@ -1,4 +1,4 @@
-FROM ghcr.io/mlflow/mlflow:latest
+FROM python:3.13-slim
 
 RUN pip install -U pip
 RUN pip install psycopg2-binary mlflow

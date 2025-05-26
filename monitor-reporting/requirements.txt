@@ -3,7 +3,6 @@ tqdm
 requests
 joblib
 pyarrow
-psycopg2
 psycopg2-binary
 evidently
 pandas
