@@ -1,5 +1,4 @@
 #!/bin/bash
-# filepath: c:\Users\Loïc Van Camp\Documents\MLOps\project-LoicVanCamp\deploy_batch\startPoolWorkers.sh
 
 # Wait for Prefect API to be ready
 until curl -sf http://orchestration:4200/docs; do
@@ -8,7 +7,7 @@ until curl -sf http://orchestration:4200/docs; do
 done
 
 # Start Prefect work pool and worker
-prefect work-pool create --type process batch --overwrite
-prefect worker start --pool batch &
+prefect work-pool create --type process batching --overwrite
+prefect worker start --pool batching &
 
 python /app/batch.py

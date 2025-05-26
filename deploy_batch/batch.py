@@ -77,13 +77,13 @@ def prep_features(df, dv):
 
 
 def get_latest_version(registered_model_name):
-    """Get the latest version number of a registered model.
+    """Get the latest version object of a registered model.
 
     Args:
         registered_model_name (str): Name of the registered model.
 
     Returns:
-        int: Latest version number.
+        ModelVersion: Latest version object.
     """
     versions = client.get_latest_versions(registered_model_name)
     if versions:
@@ -221,12 +221,12 @@ def load_model_and_dv_task():
     """Prefect task to load the latest model and DictVectorizer from MLflow.
 
     Returns:
-        tuple: (model, dv, run_id, run_name)
+        tuple: (model, dv, run_id, model_name)
     """
     return load_model_and_dv()
 
 
-@flow
+@flow(name="run-batch")
 def run_batch(
     filepath: str,
 ):
@@ -260,7 +260,7 @@ def run_batch(
 
 if __name__ == "__main__":
     run_batch.serve(
-        name="batch-predictor",
+        name="batch-pipeline",
         parameters={
             "filepath": "/app/batch_data/Students.csv",
         },

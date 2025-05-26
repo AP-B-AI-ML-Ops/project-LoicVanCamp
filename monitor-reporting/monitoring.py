@@ -18,23 +18,30 @@ from dotenv import load_dotenv
 from evidently import Report
 from evidently.presets import DataDriftPreset
 from prefect import flow, task
+from prefect.deployments import run_deployment
 from sqlalchemy import create_engine, types
 from sqlalchemy_utils import create_database, database_exists
 
 
 @task
 def load_env():
-    """Load environment variables from a .env file."""
+    """
+    Load environment variables from a .env file using python-dotenv.
+    """
     load_dotenv()
 
 
 @task
 def load_model(model_name, model_version):
-    """Load a model from MLflow Model Registry.
+    """
+    Load a model from MLflow Model Registry.
 
     Args:
         model_name (str): Name of the model in MLflow.
         model_version (int): Version of the model to load.
+
+    Returns:
+        None
     """
     mlflow_uri = "http://experiment-tracking:5000"
     mlflow.set_tracking_uri(mlflow_uri)
@@ -43,10 +50,11 @@ def load_model(model_name, model_version):
 
 @task
 def load_data():
-    """Load reference and current data from CSV files.
+    """
+    Load reference and current data from CSV files.
 
     Returns:
-        tuple: reference_data (pd.DataFrame), current_data (pd.DataFrame)
+        tuple: (reference_data, current_data) as pandas DataFrames.
     """
     reference_data = pd.read_csv("batch_data/report/students/reference.csv")
     current_data = pd.read_csv("batch_data/report/students/current.csv")
@@ -55,10 +63,11 @@ def load_data():
 
 @task
 def load_run_metrics():
-    """Load the latest run metrics from JSON files.
+    """
+    Load the latest run metrics from JSON files.
 
     Returns:
-        dict: Loaded metrics or empty dict if none found.
+        dict: Loaded metrics from the most recent metrics JSON file, or empty dict if none found.
     """
     candidates = glob("batch_data/report/students/*_metrics.json")
     if not candidates:
@@ -70,14 +79,15 @@ def load_run_metrics():
 
 @task
 def generate_report(reference_data, current_data):
-    """Generate a data drift report using Evidently.
+    """
+    Generate a data drift report using Evidently.
 
     Args:
         reference_data (pd.DataFrame): Reference dataset.
         current_data (pd.DataFrame): Current dataset.
 
     Returns:
-        Report: Evidently report snapshot.
+        Report: Evidently report snapshot object.
     """
     report = Report(metrics=[DataDriftPreset()])
     snapshot = report.run(reference_data=reference_data, current_data=current_data)
@@ -86,14 +96,15 @@ def generate_report(reference_data, current_data):
 
 @task
 def extract_metrics(snapshot, run_metrics):
-    """Extract metrics from the Evidently report and combine with run metrics.
+    """
+    Extract metrics from the Evidently report and combine with run metrics.
 
     Args:
         snapshot (Report): Evidently report snapshot.
         run_metrics (dict): Metrics from the latest run.
 
     Returns:
-        pd.DataFrame: DataFrame containing all extracted metrics.
+        pd.DataFrame: DataFrame containing all extracted metrics, including run metadata.
     """
     json_data = snapshot.dict()
     result_data = []
@@ -128,10 +139,14 @@ def extract_metrics(snapshot, run_metrics):
 
 @task
 def save_to_db(metrics_df):
-    """Save the metrics DataFrame to a PostgreSQL database.
+    """
+    Save the metrics DataFrame to a PostgreSQL database.
 
     Args:
         metrics_df (pd.DataFrame): DataFrame containing metrics to save.
+
+    Returns:
+        None
     """
     DB_USER = os.getenv("POSTGRES_USER")
     DB_PWD = os.getenv("POSTGRES_PASSWORD")
@@ -152,13 +167,22 @@ def save_to_db(metrics_df):
     print("✅ Evidently metrics saved to database")
 
 
-@flow
-def run_monitoring(model_name: str = "rf-math-pass-predictor", model_version: int = 1):
-    """Main Prefect flow for running the monitoring pipeline.
+@flow(name="run-monitoring")
+def run_monitoring(
+    model_name: str = "rf-math-pass-predictor",
+    model_version: int = 1,
+    rmse_threshold: float = 0.3,
+):
+    """
+    Main Prefect flow for running the monitoring pipeline and triggering retraining if needed.
 
     Args:
-        model_name (str, optional): Name of the model to monitor. Defaults to "rf-math-pass-predictor".
-        model_version (int, optional): Version of the model to monitor. Defaults to 1.
+        model_name (str, optional): Name of the model to monitor.
+        model_version (int, optional): Version of the model to monitor.
+        rmse_threshold (float, optional): RMSE threshold for retraining trigger.
+
+    Returns:
+        None
     """
     load_env()
     load_model(model_name, model_version)
@@ -167,6 +191,27 @@ def run_monitoring(model_name: str = "rf-math-pass-predictor", model_version: in
     snapshot = generate_report(reference_data, current_data)
     metrics_df = extract_metrics(snapshot, run_metrics)
     save_to_db(metrics_df)
+
+    # --- Conditional retraining trigger ---
+    latest_rmse = None
+    drift_detected = False
+
+    # Find RMSE and data drift in metrics
+    for _, row in metrics_df.iterrows():
+        if row["metric_name"] == "data_drift":
+            drift_detected = row["value"].get("data_drift", False)
+        if "rmse" in row["value"]:
+            latest_rmse = row["value"]["rmse"]
+
+    if (latest_rmse is not None and latest_rmse > rmse_threshold) or drift_detected:
+        print(
+            f"⚠️ Triggering retraining: RMSE={latest_rmse}, Data drift={drift_detected}"
+        )
+        run_deployment(name="run-train/train-pipeline")
+    else:
+        print(
+            f"✅ No retraining needed: RMSE={latest_rmse}, Data drift={drift_detected}"
+        )
 
 
 if __name__ == "__main__":

@@ -63,6 +63,7 @@ services:
       - ./mlruns:/mlruns
     environment:
       - MLFLOW_TRACKING_URI=http://experiment-tracking:5000
+      - PREFECT_API_URL=http://orchestration:4200/api
     restart: on-failure
 
   # 4. Batch service (needs model-training, orchestration)
@@ -71,8 +72,6 @@ services:
     depends_on:
       orchestration:
         condition: service_healthy
-      model-training:
-        condition: service_completed_successfully
     environment:
       - PREFECT_API_URL=http://orchestration:4200/api
     volumes:
@@ -101,6 +100,7 @@ services:
     depends_on:
       - batch-service
       - monitoring
+      - model-training
     environment:
       - PREFECT_API_URL=http://orchestration:4200/api
 

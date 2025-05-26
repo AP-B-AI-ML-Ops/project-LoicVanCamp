@@ -7,7 +7,7 @@ until curl -sf http://orchestration:4200/docs; do
 done
 
 # Start Prefect worker and flow
-prefect work-pool create --type process monitoring --overwrite
-prefect worker start --pool monitoring &
+prefect work-pool create --type process training --overwrite
+prefect worker start --pool training &
 
-python /app/monitoring.py
+python /app/scripts/train_flow.py

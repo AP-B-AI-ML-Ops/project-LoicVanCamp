@@ -1,4 +1,6 @@
-"""Trigger and monitor Prefect deployments for batch and monitoring pipelines."""
+"""Trigger and monitor Prefect deployments for training, batch, and monitoring pipelines."""
+
+# pylint: disable=line-too-long
 
 import re
 import subprocess
@@ -6,7 +8,15 @@ import time
 
 
 def wait_for_deployment(deployment_name):
-    """Wait for a Prefect deployment to become available."""
+    """
+    Wait for a Prefect deployment to become available.
+
+    Args:
+        deployment_name (str): The full name of the Prefect deployment (e.g., "run-train/train-pipeline").
+
+    Returns:
+        bool: True if the deployment is found within the timeout, False otherwise.
+    """
     for _ in range(30):  # Try for up to 5 minutes
         result = subprocess.run(
             ["prefect", "deployment", "inspect", deployment_name],
@@ -22,7 +32,15 @@ def wait_for_deployment(deployment_name):
 
 
 def extract_flow_run_id(output):
-    """Extract the flow run ID from Prefect CLI output."""
+    """
+    Extract the flow run ID from Prefect CLI output.
+
+    Args:
+        output (str): The output string from the Prefect CLI after triggering a deployment.
+
+    Returns:
+        str or None: The extracted flow run ID, or None if not found.
+    """
     match = re.search(r"Flow run ID:\s*([a-f0-9\-]+)", output)
     if match:
         return match.group(1)
@@ -35,7 +53,15 @@ def extract_flow_run_id(output):
 
 
 def extract_state_type(flow_run_inspect_output):
-    """Extract the state type from Prefect flow run inspect output."""
+    """
+    Extract the state type from Prefect flow run inspect output.
+
+    Args:
+        flow_run_inspect_output (str): The output string from inspecting a flow run.
+
+    Returns:
+        str or None: The extracted state type (e.g., "COMPLETED", "FAILED"), or None if not found.
+    """
     match = re.search(r"type=StateType\.([A-Z]+)", flow_run_inspect_output)
     if match:
         return match.group(1)
@@ -43,7 +69,15 @@ def extract_state_type(flow_run_inspect_output):
 
 
 def trigger_and_wait_for_run(deployment_name):
-    """Trigger a Prefect deployment and wait for its completion."""
+    """
+    Trigger a Prefect deployment and wait for its completion.
+
+    Args:
+        deployment_name (str): The full name of the Prefect deployment to trigger.
+
+    Returns:
+        bool: True if the flow run completed successfully, False otherwise.
+    """
     if not wait_for_deployment(deployment_name):
         print(f"Deployment {deployment_name} not found.")
         return False
@@ -91,13 +125,17 @@ def trigger_and_wait_for_run(deployment_name):
 
 if __name__ == "__main__":
     print("Starting deployment trigger...")
-    # Use the exact deployment names as registered in Prefect
-    BATCH_DEPLOYMENT = "run-batch/batch-predictor"
+    TRAIN_DEPLOYMENT = "run-train/train-pipeline"
+    BATCH_DEPLOYMENT = "run-batch/batch-pipeline"
     MONITORING_DEPLOYMENT = "run-monitoring/monitoring-pipeline"
-
-    if trigger_and_wait_for_run(BATCH_DEPLOYMENT):
-        trigger_and_wait_for_run(MONITORING_DEPLOYMENT)
+    if trigger_and_wait_for_run(TRAIN_DEPLOYMENT):
+        if trigger_and_wait_for_run(BATCH_DEPLOYMENT):
+            trigger_and_wait_for_run(MONITORING_DEPLOYMENT)
+        else:
+            print(
+                "Batch run did not complete successfully. Monitoring will not be triggered."
+            )
     else:
         print(
-            "Batch run did not complete successfully. Monitoring will not be triggered."
+            "Training run did not complete successfully. Batch and Monitoring will not be triggered."
         )
