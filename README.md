@@ -95,7 +95,7 @@ The application is fully containerized using Docker and orchestrated with Prefec
   4. Access the API at [http://localhost:8000](http://localhost:8000).
   5. Access MLflow UI at [http://localhost:5000](http://localhost:5000).
   6. Access Grafana at [http://localhost:3400](http://localhost:3400) (login: admin/admin).
-  7. Access Prefect at [http://localhost:4200/](http://localhost:4200/)
+  7. Access Prefect at [http://localhost:4200/](http://localhost:4200/).
 
 - All dependencies are specified in `requirements.txt` and `pyproject.toml`.
 - Pre-commit hooks and unit tests are included for code quality and reproducibility.
