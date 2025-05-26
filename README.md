@@ -1,4 +1,4 @@
-### 📝 `README.md` Template
+### `README.md`
 
 # Student Exam Performance Prediction
 
