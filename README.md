@@ -8,7 +8,7 @@ The dataset used in this project is the **Students Performance in Exams** datase
 - **Source:** [Students Performance in Exams - Kaggle](https://www.kaggle.com/datasets/spscientist/students-performance-in-exams)
 - **Features:** Gender, Race/Ethnicity, Parental Level of Education, Lunch Type, Test Preparation Course, Math Score, Reading Score, Writing Score.
 - **Target variable:** `pass_math` (binary classification: pass = 1, fail = 0 based on a score threshold of 50).
-- **Disclaimer**: race/Ethnicity grouping categories could not be made out
+- **Disclaimer**: race/Ethnicity grouping categories could not be made out. I Found out too late to delete them from the project.
 
 **Data splits:**
 - **Training data:** 70% of the dataset
