@@ -8,7 +8,7 @@ RUN pip install --upgrade pip
 
 COPY . /app
 
-RUN pip install --upgrade -r requirements.txt
+RUN pip install -r requirements.txt
 
 
 # Add startup script

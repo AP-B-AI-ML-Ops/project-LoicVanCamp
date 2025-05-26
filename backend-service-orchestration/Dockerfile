@@ -10,6 +10,7 @@ RUN pwd
 
 COPY ["./.prefectignore", "./prefect.yaml", "./"]
 
-RUN pip install pendulum prefect --upgrade
+COPY requirements.txt .
+RUN pip install -r ./requirements.txt
 
 CMD ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
