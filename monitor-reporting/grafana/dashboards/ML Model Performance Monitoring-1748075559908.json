@@ -19,13 +19,12 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
   "links": [],
   "panels": [
     {
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "eemrnvarmzt34d"
+        "uid": "fen2i5ge52dxcf"
       },
       "description": "a gauge view, showing the RMSE value for the latest version of the registered model\n",
       "fieldConfig": {
@@ -42,7 +41,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -75,9 +75,13 @@
         "showThresholdMarkers": false,
         "sizing": "auto"
       },
-      "pluginVersion": "12.0.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "fen2i5ge52dxcf"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -106,10 +110,7 @@
       "type": "gauge"
     },
     {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "eemrnvarmzt34d"
-      },
+      "datasource": {},
       "description": "a bar chart, showing the RMSE value for each run. When you hover over a bar, you see the run_uuid, value and name of the run",
       "fieldConfig": {
         "defaults": {
@@ -142,7 +143,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -217,10 +219,7 @@
       "type": "barchart"
     },
     {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "eemrnvarmzt34d"
-      },
+      "datasource": {},
       "description": "a table view, showing the experiment id, name of the experiment and the name of each run in the experiment, ordered by experiment name",
       "fieldConfig": {
         "defaults": {
@@ -239,7 +238,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -269,9 +269,13 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "12.0.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "fen2i5ge52dxcf"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -300,19 +304,20 @@
       "type": "table"
     }
   ],
-  "preload": false,
-  "schemaVersion": 41,
+  "refresh": "5s",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-6h",
-    "to": "now"
+    "from": "2025-05-26T09:03:24.967Z",
+    "to": "2025-05-26T21:03:24.967Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "ML Model Performance Monitoring",
   "uid": "51facc26-c13b-4d32-846b-983a9b95a8e0",
-  "version": 1
+  "version": 1,
+  "weekStart": ""
 }

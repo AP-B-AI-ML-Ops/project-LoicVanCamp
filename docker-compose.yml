@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:10.4.2
     ports:
       - "3400:3000"
     volumes:
@@ -20,6 +20,7 @@ services:
       - ./batch_data:/batch_data
       - ./monitor-reporting/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./monitor-reporting/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards
+      - ./monitor-reporting/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     restart: unless-stopped
 
   orchestration:
