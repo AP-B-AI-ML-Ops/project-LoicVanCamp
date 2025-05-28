@@ -89,14 +89,72 @@ The application is fully containerized using Docker and orchestrated with Prefec
 ## Reproducibility & Instructions
 
 - All code, data splits, and dependencies are versioned and tracked.
-- To run the project:
-  1. Clone the repository.
-  2. Ensure Docker and Docker Compose are installed and running.
-  3. Run `docker compose up --build` from the project root.
-  4. Access the API at [http://localhost:8000](http://localhost:8000).
-  5. Access MLflow UI at [http://localhost:5000](http://localhost:5000).
-  6. Access Grafana at [http://localhost:3400](http://localhost:3400) (login: admin/admin).
-  7. Access Prefect at [http://localhost:4200/](http://localhost:4200/).
+
+### 1. Clone and build the project
+
+1. Clone the repository.
+2. Ensure Docker and Docker Compose are installed and running.
+
+### 2. Environment variable setup
+
+Before running the project, **create the following `.env` files** in the specified directories:
+
+- **Root `.env`** (`./.env`):
+    ```env
+    PYTHONPATH=${workspaceFolder}
+    ```
+
+- **Database service** (`./backend-database/.env`):
+    ```env
+    POSTGRES_USER=postgres
+    POSTGRES_PASSWORD=postgres
+    POSTGRES_DB=mlflow_db
+    POSTGRES_HOST=backend-database
+    POSTGRES_PORT=5432
+    ```
+
+- **Monitor-reporting service** (`./monitor-reporting/.env`):
+    ```env
+    POSTGRES_USER=postgres
+    POSTGRES_PASSWORD=postgres
+    PREFECT_API_URL=http://orchestration:4200/api
+    ```
+
+- **Train service** (`./train/.env`):
+    ```env
+    MLFLOW_TRACKING_URI=http://experiment-tracking:5000
+    PREFECT_API_URL=http://orchestration:4200/api
+    ```
+
+- **API service** (`./api/.env`):
+    ```env
+    MLFLOW_TRACKING_URI=http://experiment-tracking:5000
+    ```
+
+- **Batch service** (`./deploy_batch/.env`):
+    ```env
+    MLFLOW_TRACKING_URI=http://experiment-tracking:5000
+    MODEL_NAME=rf-math-pass-predictor
+    ```
+
+- **Deployment trigger service** (`./deployment-trigger/.env`):
+    ```env
+    PREFECT_API_URL=http://orchestration:4200/api
+    ```
+
+> **Note:**
+> These `.env` files are referenced automatically by Docker Compose.
+> Never commit secrets or production credentials to public repositories.
+> Fill in the values according to your deployment or use the defaults from Above.
+> For a student or demo project, it's fine to show example values, as long as they're not production secrets.
+
+### 3. Run the project
+
+3. Run `docker compose up --build` from the project root.
+4. Access the API at [http://localhost:8000](http://localhost:8000).
+5. Access MLflow UI at [http://localhost:5000](http://localhost:5000).
+6. Access Grafana at [http://localhost:3400](http://localhost:3400) (login: admin/admin).
+7. Access Prefect at [http://localhost:4200/](http://localhost:4200/).
 
 - All dependencies are specified in `requirements.txt` and `pyproject.toml`.
 - Pre-commit hooks and unit tests are included for code quality and reproducibility.

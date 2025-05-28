@@ -19,15 +19,14 @@ services:
       - grafana-data:/var/lib/grafana
       - ./batch_data:/batch_data
       - ./monitor-reporting/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitor-reporting/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards
+      - ./monitor-reporting/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./monitor-reporting/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     restart: unless-stopped
 
   orchestration:
     build: ./backend-service-orchestration
-    environment:
-      - PREFECT_API_URL=http://localhost:4200/api
-      - PREFECT_ORION_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@backend-database:5432/prefect_orion
+    env_file:
+      - ./backend-service-orchestration/.env
     ports:
       - 4200:4200
     restart: unless-stopped
@@ -57,14 +56,13 @@ services:
   # 3. Model training (needs experiment-tracking)
   model-training:
     build: ./train
+    env_file:
+      - ./train/.env
     depends_on:
       - experiment-tracking
     volumes:
       - ./train/data:/app/data
       - ./mlruns:/mlruns
-    environment:
-      - MLFLOW_TRACKING_URI=http://experiment-tracking:5000
-      - PREFECT_API_URL=http://orchestration:4200/api
     restart: on-failure
 
   # 4. Batch service (needs model-training, orchestration)
@@ -73,8 +71,8 @@ services:
     depends_on:
       orchestration:
         condition: service_healthy
-    environment:
-      - PREFECT_API_URL=http://orchestration:4200/api
+    env_file:
+      - ./deploy_batch/.env
     volumes:
       - ./train/data:/data
       - ./mlruns:/mlruns
@@ -84,12 +82,10 @@ services:
   # 5. Monitoring (needs orchestration)
   monitoring:
     build: ./monitor-reporting
-    depends_on:
-      - orchestration
     env_file:
       - ./monitor-reporting/.env
-    environment:
-      - PREFECT_API_URL=http://orchestration:4200/api
+    depends_on:
+      - orchestration
     volumes:
       - ./monitor-reporting/metrics:/metrics
       - ./batch_data:/app/batch_data
@@ -98,16 +94,18 @@ services:
 
   deployment-trigger:
     build: ./deployment-trigger
+    env_file:
+      - ./deployment-trigger/.env
     depends_on:
       - batch-service
       - monitoring
       - model-training
-    environment:
-      - PREFECT_API_URL=http://orchestration:4200/api
 
-  # 6. API (build lasts)d lasts)
+  # 6. API (build lasts)
   api:
     build: ./api
+    env_file:
+      - ./api/.env
     ports:
       - "8000:8000"
     depends_on:

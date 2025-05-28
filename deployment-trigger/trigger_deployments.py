@@ -6,6 +6,10 @@ import re
 import subprocess
 import time
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def wait_for_deployment(deployment_name):
     """

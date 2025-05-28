@@ -7,15 +7,19 @@ re-trains and logs models, and registers the best model in the MLflow Model Regi
 
 # pylint: disable=no-value-for-parameter,import-error,invalid-name
 
+import os
 import pickle
 from pathlib import Path
 
 import click
 import mlflow
+from dotenv import load_dotenv
 from mlflow.entities import ViewType
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+
+load_dotenv()
 
 # Constants
 HPO_EXPERIMENT_NAME = "student-performance-hpo"
@@ -29,7 +33,9 @@ RF_PARAMS = [
     "n_jobs",
 ]
 
-mlflow.set_tracking_uri("http://experiment-tracking:5000")
+mlflow.set_tracking_uri(
+    os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000")
+)
 mlflow.set_experiment(EXPERIMENT_NAME)
 mlflow.sklearn.autolog()
 

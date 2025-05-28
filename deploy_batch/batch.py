@@ -15,13 +15,20 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 from mlflow import MlflowClient
 from prefect import flow, task
 from sklearn.metrics import mean_squared_error
 
-mlflow.set_tracking_uri("http://experiment-tracking:5000")
-client = MlflowClient("http://experiment-tracking:5000")
-model_name = "rf-math-pass-predictor"
+load_dotenv()
+
+mlflow.set_tracking_uri(
+    os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000")
+)
+client = MlflowClient(
+    os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000")
+)
+model_name = os.getenv("MODEL_NAME", "rf-math-pass-predictor")
 
 
 def read_dataframe(filename: str):

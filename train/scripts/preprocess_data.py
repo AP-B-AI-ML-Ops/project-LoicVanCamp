@@ -14,8 +14,11 @@ from pathlib import Path
 import click
 import mlflow
 import pandas as pd
+from dotenv import load_dotenv
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
+
+load_dotenv()
 
 
 def dump_pickle(obj, path: Path):

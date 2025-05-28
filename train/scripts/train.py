@@ -11,9 +11,12 @@ import pickle
 from pathlib import Path
 
 import mlflow
+from dotenv import load_dotenv
 from mlflow.tracking import MlflowClient
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+
+load_dotenv()
 
 # Set up MLflow tracking URI and experiment
 mlflow.set_tracking_uri(

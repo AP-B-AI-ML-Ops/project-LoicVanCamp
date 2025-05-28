@@ -228,3 +228,4 @@ whenever==0.8.3
 widgetsnbextension==4.0.14
 wrapt==1.17.2
 zipp==3.22.0
+python-dotenv==1.1.0

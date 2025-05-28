@@ -22,6 +22,8 @@ from prefect.deployments import run_deployment
 from sqlalchemy import create_engine, types
 from sqlalchemy_utils import create_database, database_exists
 
+load_dotenv()
+
 
 @task
 def load_env():
@@ -43,7 +45,7 @@ def load_model(model_name, model_version):
     Returns:
         None
     """
-    mlflow_uri = "http://experiment-tracking:5000"
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://experiment-tracking:5000")
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
 
@@ -150,7 +152,7 @@ def save_to_db(metrics_df):
     """
     DB_USER = os.getenv("POSTGRES_USER")
     DB_PWD = os.getenv("POSTGRES_PASSWORD")
-    DB_NAME = "mlflow_db"
+    DB_NAME = os.getenv("POSTGRES_DB", "mlflow_db")
     DB_URI = f"postgresql+psycopg2://{DB_USER}:{DB_PWD}@backend-database/{DB_NAME}"
 
     if not database_exists(DB_URI):
