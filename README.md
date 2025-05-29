@@ -99,10 +99,12 @@ The application is fully containerized using Docker and orchestrated with Prefec
 
 Before running the project, **create the following `.env` files** in the specified directories:
 
-- **Root `.env`** (`./.env`):
+- **Root `.env`** (`./.env`)(maybe not needed):
     ```env
     PYTHONPATH=${workspaceFolder}
     ```
+
+
 
 - **Database service** (`./backend-database/.env`):
     ```env
@@ -135,6 +137,7 @@ Before running the project, **create the following `.env` files** in the specifi
     ```env
     MLFLOW_TRACKING_URI=http://experiment-tracking:5000
     MODEL_NAME=rf-math-pass-predictor
+    PREFECT_API_URL=http://orchestration:4200/api
     ```
 
 - **Deployment trigger service** (`./deployment-trigger/.env`):
