@@ -1,0 +1,68 @@
+# Peer Review
+
+## Problem description
+**Score: 2/2**
+
+De probleemstelling wordt duidelijk beschreven in de README. Het project legt uit dat het doel is om een MLOps workflow te demonstreren voor het voorspellen van goudprijzen op basis van historische data. Er wordt ook vermeld dat het niet bedoeld is als productie-grade financieel model, maar als educatief voorbeeld. De context en het nut van het project zijn helder.
+
+---
+
+## Experiment tracking & model registry
+**Score: 2/2**
+
+Het project gebruikt MLflow voor zowel experiment tracking als model registry. In `train.py` wordt MLflow gebruikt om experimenten te loggen, en in `register_model.py` wordt het model geregistreerd in de MLflow Model Registry. De MLflow server draait als aparte service in de Docker Compose setup (`docker-compose.yml`). Dit voldoet volledig aan de eisen.
+
+---
+
+## Workflow orchestration
+**Score: 2/2**
+
+Workflow orchestration is volledig uitgewerkt met Prefect. Er zijn Prefect flows voor preprocessing, training, hyperparameter optimalisatie en modelregistratie, zoals te zien in `training_deployment.py` en `registration_deployment.py`. De flows worden gedeployed en kunnen gescheduled worden. De orchestrator draait als aparte service.
+
+---
+
+## Model deployment
+**Score: 2/2**
+
+De model deployment is volledig gecontainerized. De web API voor voorspellingen draait in een eigen Docker container (`web-api-dev/Dockerfile`) en gebruikt het geregistreerde model uit MLflow. De deployment kan eenvoudig naar de cloud gebracht worden door de container te deployen. Dit voldoet aan de hoogste score.
+
+---
+
+## Model monitoring
+**Score: 1/2**
+
+Er is basis model monitoring aanwezig. In `monitor.py` wordt Evidently gebruikt om data drift te detecteren en rapporten te genereren. De resultaten worden opgeslagen in de database en kunnen via Grafana dashboards bekeken worden. Er zijn echter geen automatische alerts of conditionele workflows bij threshold overschrijdingen. Monitoring is dus aanwezig, maar niet volledig geautomatiseerd.
+
+---
+
+## Reproducibility
+**Score: 2/2**
+
+De README bevat duidelijke instructies over de dataset en de algemene werking. De dependency-versies zijn overal gespecificeerd in de `requirements.txt` files. De data (`Daily.csv`) is aanwezig in de juiste mappen. Het project is eenvoudig te starten en werkt zoals verwacht. Alle benodigde stappen zijn beschreven.
+
+**Opmerking**: Er wordt vermeld dat het builden,starten en initialiseren ongeveer 3 minuten in totaal duurt. ik denk dat dit geen rekening houd met het maken van de images de eerste keer.
+
+---
+
+## Samenvatting
+
+| Rubriek                        | Score |
+|---------------------------------|-------|
+| Problem description            | 2/2   |
+| Experiment tracking & registry | 2/2   |
+| Workflow orchestration         | 2/2   |
+| Model deployment               | 2/2   |
+| Model monitoring               | 1/2   |
+| Reproducibility                | 2/2   |
+| **Totaal**                     | **11/12** |
+
+---
+
+### Opmerkingen
+
+- Overweeg automatische alerts of conditionele acties toe te voegen aan de monitoring voor een perfecte score.
+- De codebase is netjes gestructureerd en volgt de MLOps best practices.
+
+---
+
+**Deze peer review is volledig gemotiveerd en onderbouwd per rubriek.**
